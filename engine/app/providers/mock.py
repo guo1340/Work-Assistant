@@ -33,10 +33,7 @@ class MockProvider(Provider):
         output = (
             output_factory(context)
             if output_factory
-            else response.get(
-                "output",
-                {"message": f"mock {context.stage} completed"},
-            )
+            else response.get("output", self._default_output(context))
         )
         return StageResult(
             stage=context.stage,
@@ -53,4 +50,80 @@ class MockProvider(Provider):
                 "human_review_required",
                 False,
             ),
+        )
+
+    @staticmethod
+    def _default_output(context: ProviderContext) -> dict[str, Any]:
+        sequence = context.request_id.rsplit("-", 1)[-1]
+        task_id = f"TASK-{sequence}-01"
+        outputs: dict[str, dict[str, Any]] = {
+            "project_scanner": {
+                "summary": "Local project understood from its repository context.",
+                "languages": [],
+                "documents": {
+                    "PROJECT_NOTES.md": (
+                        "## DevFlow scan\n\nRepository inventory synthesized "
+                        "by the mock provider."
+                    )
+                },
+            },
+            "request_logger": {"captured": True},
+            "planner": {
+                "interpretation": context.payload.get(
+                    "original_text",
+                    "Implement the logged request.",
+                ),
+                "tasks": [
+                    {
+                        "task_id": task_id,
+                        "request_id": context.request_id,
+                        "description": "Implement the logged request",
+                        "priority": "High",
+                        "acceptance_criteria": [
+                            "The requested behavior is implemented",
+                            "Relevant tests pass",
+                        ],
+                        "dependencies": [],
+                        "estimated_files": [],
+                        "status": "Pending",
+                    }
+                ],
+            },
+            "repo_analyzer": {
+                "context_files": ["PROJECT_NOTES.md", "LOGS.md"],
+                "git_diff": "",
+                "notes": "Minimal mock context package.",
+            },
+            "builder": {
+                "files_changed": [],
+                "changes": {},
+                "diff": "",
+                "diff_summary": "Mock builder completed without filesystem changes.",
+            },
+            "documentation": {
+                "log_entry": (
+                    f"## {context.request_id}\n\n"
+                    "Mock builder output committed by the engine."
+                )
+            },
+            "tester": {
+                "passed": 1,
+                "failed": 0,
+                "coverage": 1.0,
+                "regressions": [],
+            },
+            "reviewer": {
+                "missing": [],
+                "invented": [],
+                "scope_creep": [],
+                "verdict": "approved",
+            },
+            "final_report": {
+                "verdict": "complete",
+                "report": "All mock pipeline stages completed successfully.",
+            },
+        }
+        return outputs.get(
+            context.stage,
+            {"message": f"mock {context.stage} completed"},
         )

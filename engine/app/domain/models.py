@@ -48,6 +48,7 @@ class Tier(IntEnum):
 
 
 class Capability(StrEnum):
+    SCAN = "scan"
     LOG = "log"
     PLAN = "plan"
     ANALYZE = "analyze"
@@ -69,6 +70,7 @@ class StageResult:
     missing_information: list[str] = field(default_factory=list)
     human_review_required: bool = False
     task_id: str | None = None
+    rule_risk_level: RiskLevel = RiskLevel.LOW
 
     def __post_init__(self) -> None:
         if not 0 <= self.confidence <= 1:
@@ -77,6 +79,10 @@ class StageResult:
             raise ValueError("stage is required")
         if not self.request_id.strip():
             raise ValueError("request_id is required")
+
+    @property
+    def effective_risk_level(self) -> RiskLevel:
+        return max(self.risk_level, self.rule_risk_level)
 
 
 @dataclass(frozen=True)

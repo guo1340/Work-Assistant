@@ -32,6 +32,50 @@ class StateStore:
             )
             return int(cursor.lastrowid)
 
+    def update_project_scan(
+        self,
+        project_id: int,
+        *,
+        summary: str,
+        languages: list[str],
+        scan_type: str,
+    ) -> None:
+        with self.transaction() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE projects
+                SET summary = ?, languages = ?, scan_type = ?,
+                    last_scanned_at = ?
+                WHERE id = ?
+                """,
+                (
+                    summary,
+                    json.dumps(languages),
+                    scan_type,
+                    utc_now(),
+                    project_id,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise KeyError(f"unknown project: {project_id}")
+
+    def get_project(self, project_id: int) -> dict[str, Any]:
+        with self.transaction() as connection:
+            row = connection.execute(
+                "SELECT * FROM projects WHERE id = ?",
+                (project_id,),
+            ).fetchone()
+        if row is None:
+            raise KeyError(f"unknown project: {project_id}")
+        return dict(row)
+
+    def list_projects(self) -> list[dict[str, Any]]:
+        with self.transaction() as connection:
+            rows = connection.execute(
+                "SELECT * FROM projects ORDER BY id"
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def create_request(
         self,
         request_id: str,
@@ -68,6 +112,85 @@ class StateStore:
         if row is None:
             raise KeyError(f"unknown request: {request_id}")
         return dict(row)
+
+    def list_requests(self, project_id: int) -> list[dict[str, Any]]:
+        with self.transaction() as connection:
+            rows = connection.execute(
+                """
+                SELECT * FROM requests
+                WHERE project_id = ?
+                ORDER BY created_at DESC, request_id DESC
+                """,
+                (project_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def next_request_id(self) -> str:
+        year = datetime.now(UTC).year
+        with self.transaction() as connection:
+            rows = connection.execute(
+                "SELECT request_id FROM requests WHERE request_id LIKE ?",
+                (f"REQ-{year}-%",),
+            ).fetchall()
+        sequences = [
+            int(row["request_id"].rsplit("-", 1)[-1])
+            for row in rows
+            if row["request_id"].rsplit("-", 1)[-1].isdigit()
+        ]
+        return f"REQ-{year}-{max(sequences, default=0) + 1:04d}"
+
+    def replace_tasks(
+        self,
+        request_id: str,
+        tasks: list[dict[str, Any]],
+    ) -> None:
+        with self.transaction() as connection:
+            connection.execute(
+                "DELETE FROM tasks WHERE request_id = ?",
+                (request_id,),
+            )
+            for task in tasks:
+                connection.execute(
+                    """
+                    INSERT INTO tasks (
+                        task_id, request_id, description, priority,
+                        acceptance_criteria, dependencies, estimated_files,
+                        status
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        task["task_id"],
+                        request_id,
+                        task["description"],
+                        task.get("priority", "Medium"),
+                        json.dumps(task.get("acceptance_criteria", [])),
+                        json.dumps(task.get("dependencies", [])),
+                        json.dumps(task.get("estimated_files", [])),
+                        task.get("status", "Pending"),
+                    ),
+                )
+
+    def tasks(self, request_id: str) -> list[dict[str, Any]]:
+        with self.transaction() as connection:
+            rows = connection.execute(
+                "SELECT * FROM tasks WHERE request_id = ? ORDER BY task_id",
+                (request_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def update_planner_interpretation(
+        self,
+        request_id: str,
+        interpretation: str,
+    ) -> None:
+        with self.transaction() as connection:
+            connection.execute(
+                """
+                UPDATE requests SET planner_interpretation = ?
+                WHERE request_id = ?
+                """,
+                (interpretation, request_id),
+            )
 
     def transition(
         self,
@@ -151,7 +274,7 @@ class StateStore:
                     json.dumps(result.output),
                     result.model_used,
                     result.confidence,
-                    str(result.risk_level),
+                    str(result.effective_risk_level),
                     json.dumps(result.missing_information),
                     int(result.human_review_required),
                     status,
@@ -162,6 +285,23 @@ class StateStore:
                 ),
             )
             return int(cursor.lastrowid)
+
+    def latest_stage_result(
+        self,
+        request_id: str,
+        stage: str | None = None,
+    ) -> dict[str, Any]:
+        query = "SELECT * FROM stage_results WHERE request_id = ?"
+        params: list[Any] = [request_id]
+        if stage is not None:
+            query += " AND stage = ?"
+            params.append(stage)
+        query += " ORDER BY id DESC LIMIT 1"
+        with self.transaction() as connection:
+            row = connection.execute(query, params).fetchone()
+        if row is None:
+            raise KeyError(f"no stage result for {request_id}")
+        return dict(row)
 
     def record_failed_attempt(
         self,
@@ -251,6 +391,36 @@ class StateStore:
                 (request_id,),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def append_history(
+        self,
+        request_id: str,
+        event: str,
+        *,
+        stage: str | None = None,
+        from_state: RequestState | None = None,
+        to_state: RequestState | None = None,
+        detail: dict[str, Any] | None = None,
+        git_sha: str | None = None,
+    ) -> None:
+        with self.transaction() as connection:
+            connection.execute(
+                """
+                INSERT INTO execution_history (
+                    request_id, stage, from_state, to_state, event,
+                    detail, git_sha
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    request_id,
+                    stage,
+                    from_state,
+                    to_state,
+                    event,
+                    json.dumps(detail) if detail is not None else None,
+                    git_sha,
+                ),
+            )
 
     def stage_results(self, request_id: str) -> list[dict[str, Any]]:
         with self.transaction() as connection:

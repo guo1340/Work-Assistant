@@ -39,3 +39,15 @@ Each entry should capture:
   `REQUESTS.md`, `TRACEABILITY.md`, `DECISIONS.md`.
 - **Why:** Convert the initial skeleton into a detailed, consistent architecture
   spec ahead of implementation.
+
+## 2026-07-01 — Phases 3–6
+
+- **Changes made:** Added project scanning and Markdown persistence, implemented
+  the complete mock-agent pipeline, deterministic traceability and risk
+  enforcement, request-branch Git safety, local workflow API, and the responsive
+  DevFlow product workspace.
+- **Files modified:** `engine/app/{scanner,kb,agents,risk,git,services,api}`,
+  `engine/config/risk_rules.json`, `frontend/src`, and Phase 3–6 tests.
+- **Why:** Complete the mock-backed MVP workflow before real provider CLI
+  integrations, preserving the deterministic engine and stateless-agent
+  boundaries.

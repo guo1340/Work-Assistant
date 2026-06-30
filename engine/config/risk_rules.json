@@ -1,0 +1,37 @@
+{
+  "high_path_patterns": [
+    "migrations/",
+    "auth",
+    "login",
+    "session",
+    "payment",
+    "billing",
+    "secrets",
+    ".env",
+    "dockerfile",
+    "deploy",
+    ".github/workflows/"
+  ],
+  "high_diff_patterns": [
+    "DROP TABLE",
+    "DELETE FROM",
+    "ALTER TABLE",
+    "rm -rf",
+    "private_key",
+    "credential",
+    "SECRET"
+  ],
+  "dependency_files": [
+    "package.json",
+    "package-lock.json",
+    "requirements.txt",
+    "pyproject.toml",
+    "go.mod",
+    "cargo.toml",
+    "pom.xml",
+    "build.gradle"
+  ],
+  "config_suffixes": [".json", ".toml", ".yaml", ".yml", ".ini", ".cfg"],
+  "large_diff_lines": 400,
+  "low_confidence_threshold": 0.7
+}

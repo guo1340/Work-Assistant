@@ -9,7 +9,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 def _resolve_project_path(value: str) -> Path:
     path = Path(value).expanduser()
-    return path if path.is_absolute() else PROJECT_ROOT / path
+    if path.is_absolute() or value.startswith(("/", "\\")):
+        return path
+    return PROJECT_ROOT / path
 
 
 @dataclass(frozen=True)
