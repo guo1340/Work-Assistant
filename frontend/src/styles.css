@@ -1,0 +1,148 @@
+@import "tailwindcss";
+
+:root {
+  --color-canvas: oklch(0.105 0 0);
+  --color-surface: oklch(0.145 0.008 110);
+  --color-surface-raised: oklch(0.185 0.01 110);
+  --color-line: oklch(0.3 0.012 110);
+  --color-ink: oklch(0.94 0.006 110);
+  --color-muted: oklch(0.7 0.012 110);
+  --color-primary: oklch(0.72 0.11 110);
+  --color-success: oklch(0.72 0.13 150);
+  --color-danger: oklch(0.68 0.18 28);
+  font-family: "Segoe UI Variable", "Aptos", system-ui, sans-serif;
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+main {
+  min-height: 100vh;
+  display: grid;
+  align-items: center;
+  padding: clamp(1.25rem, 6vw, 5rem);
+  background: var(--color-canvas);
+}
+
+.shell {
+  width: min(46rem, 100%);
+  padding: clamp(1.5rem, 4vw, 2.5rem);
+}
+
+.product-mark {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0 0 2.5rem;
+  color: var(--color-muted);
+  font-family: ui-monospace, "Cascadia Code", monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.product-mark span {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border: 1px solid var(--color-line);
+  border-radius: 0.25rem;
+  color: var(--color-primary);
+  font-size: 0.68rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: 2.5rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.lede {
+  max-width: 65ch;
+  margin: 1rem 0 2.5rem;
+  color: var(--color-muted);
+  font-size: 1rem;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+.status-panel {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  border: 1px solid var(--color-line);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  background: var(--color-surface);
+}
+
+.status-panel strong {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.status-panel p {
+  margin: 0.35rem 0 0;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+.signal {
+  flex: 0 0 auto;
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-top: 0.3rem;
+  border: 2px solid var(--color-muted);
+  border-radius: 50%;
+  background: var(--color-surface-raised);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.signal--ready {
+  border-color: var(--color-success);
+  background: var(--color-success);
+  animation: none;
+}
+
+.signal--error {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  animation: none;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal {
+    animation: none;
+  }
+}
+
+@media (max-width: 40rem) {
+  h1 {
+    font-size: 2rem;
+  }
+
+  .status-panel {
+    padding: 1.25rem;
+  }
+}

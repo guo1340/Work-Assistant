@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-30T00:00:00Z",
+  "title": "Design System: DevFlow Assistant",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Black Canvas",
+        "canonical": "oklch(0.105 0 0)"
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Control Olive",
+        "canonical": "oklch(0.72 0.11 110)"
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Verified Green",
+        "canonical": "oklch(0.72 0.13 150)"
+      },
+      "danger": {
+        "role": "semantic",
+        "displayName": "Gate Red",
+        "canonical": "oklch(0.68 0.18 28)"
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "Page and major-view headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Explanatory interface copy."
+      },
+      "label": {
+        "displayName": "Technical label",
+        "purpose": "IDs, state, paths, and metadata."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "status",
+        "value": "1400ms ease-in-out",
+        "purpose": "Communicates an in-progress health check only."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Status panel",
+      "kind": "custom",
+      "refersTo": "status-panel",
+      "description": "Engine and database connectivity state.",
+      "html": "<section class=\"ds-status\"><span class=\"ds-signal\"></span><div><strong>Engine connected</strong><p>FastAPI and SQLite are ready.</p></div></section>",
+      "css": ".ds-status{display:flex;gap:16px;padding:24px;border:1px solid oklch(0.30 0.012 110);border-radius:8px;background:oklch(0.145 0.008 110);color:oklch(0.94 0.006 110)}.ds-status p{margin:6px 0 0;color:oklch(0.70 0.012 110)}.ds-signal{width:10px;height:10px;margin-top:6px;border-radius:50%;background:oklch(0.72 0.13 150)}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Legible Control Room",
+    "overview": "A precise, calm, transparent working surface for extended developer workflows.",
+    "keyCharacteristics": [
+      "Compact hierarchy",
+      "Dark neutral architecture",
+      "Monospace metadata",
+      "Semantic color"
+    ],
+    "rules": [
+      {
+        "name": "The Evidence Color Rule",
+        "body": "Color communicates identity, state, risk, or action.",
+        "section": "colors"
+      },
+      {
+        "name": "The Flat State Rule",
+        "body": "Persistent surfaces never float decoratively.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Use color only for identity, action, and semantic state.",
+      "Pair color state with text and shape."
+    ],
+    "donts": [
+      "Do not use decorative gradients, glassmorphism, colored side stripes, or nested cards.",
+      "Do not turn the product shell into a marketing surface."
+    ]
+  }
+}
