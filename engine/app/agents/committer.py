@@ -39,7 +39,11 @@ class AgentResultCommitter:
     ) -> None:
         self.store = store
         self.traceability = TraceabilityChecker()
-        self.git_safety_by_project = git_safety_by_project or {}
+        self.git_safety_by_project = (
+            git_safety_by_project
+            if git_safety_by_project is not None
+            else {}
+        )
 
     def commit(self, result: StageResult) -> None:
         request = self.store.get_request(result.request_id)

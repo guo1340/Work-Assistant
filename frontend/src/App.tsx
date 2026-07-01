@@ -54,6 +54,13 @@ type RequestDetail = RequestSummary & {
 
 type EvidenceTab = 'output' | 'tasks' | 'tests' | 'history'
 
+type ProviderOption = {
+  id: string
+  tier: 'light' | 'medium' | 'heavy'
+  capabilities: string[]
+  authentication: 'authenticated' | 'login_required' | 'not_required' | 'unknown'
+}
+
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
 
 const stages = [
@@ -85,6 +92,7 @@ async function api<T>(path: string, options?: RequestInit): Promise<T> {
 
 function App() {
   const [engineReady, setEngineReady] = useState(false)
+  const [engineChecked, setEngineChecked] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
   const [projectId, setProjectId] = useState<number | null>(null)
   const [requests, setRequests] = useState<RequestSummary[]>([])
@@ -93,6 +101,8 @@ function App() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [showProjectForm, setShowProjectForm] = useState(false)
+  const [providers, setProviders] = useState<ProviderOption[]>([])
+  const [stageProviders, setStageProviders] = useState<Record<string, string>>({})
 
   const selectedProject = projects.find((project) => project.id === projectId)
 
@@ -110,11 +120,45 @@ function App() {
   }, [])
 
   useEffect(() => {
-    Promise.all([api<{ status: string }>('/health'), refreshProjects()])
-      .then(([health]) => setEngineReady(health.status === 'ok'))
-      .catch((cause: unknown) =>
-        setError(cause instanceof Error ? cause.message : 'Engine unavailable'),
-      )
+    Promise.all([
+      api<{ status: string }>('/health'),
+      refreshProjects(),
+      api<ProviderOption[]>('/api/providers'),
+    ])
+      .then(([health, , providerOptions]) => {
+        setEngineReady(health.status === 'ok')
+        setProviders(providerOptions)
+        const ready = new Set(
+          providerOptions
+            .filter((provider) =>
+              ['authenticated', 'not_required'].includes(provider.authentication),
+            )
+            .map((provider) => provider.id),
+        )
+        const preferred: Record<string, string> = {
+          request_logger: 'cursor',
+          planner: 'cursor',
+          repo_analyzer: 'codex',
+          builder: 'claude-code',
+          documentation: 'claude-code',
+          tester: 'codex',
+          reviewer: 'claude-code',
+          final_report: 'claude-code',
+        }
+        setStageProviders(
+          Object.fromEntries(
+            stages.map(([stage]) => [
+              stage,
+              ready.has(preferred[stage]) ? preferred[stage] : 'mock',
+            ]),
+          ),
+        )
+      })
+      .catch((cause: unknown) => {
+        setEngineReady(false)
+        setError(cause instanceof Error ? cause.message : 'Engine unavailable')
+      })
+      .finally(() => setEngineChecked(true))
   }, [refreshProjects])
 
   useEffect(() => {
@@ -205,11 +249,12 @@ function App() {
         ) {
           break
         }
+        const providerId = stageProviders[detail.next_stage ?? ''] ?? 'mock'
         detail = await api<RequestDetail>(
           `/api/requests/${detail.request_id}/advance`,
           {
             method: 'POST',
-            body: JSON.stringify({ provider_id: 'mock' }),
+            body: JSON.stringify({ provider_id: providerId }),
           },
         )
         setActiveRequest(detail)
@@ -268,9 +313,17 @@ function App() {
         </nav>
 
         <div className="engine-status">
-          <span className={engineReady ? 'dot dot--success' : 'dot dot--danger'} />
+          <span
+            className={
+              engineReady
+                ? 'dot dot--success'
+                : engineChecked
+                  ? 'dot dot--danger'
+                  : 'dot'
+            }
+          />
           <span>Local engine</span>
-          <small>{engineReady ? 'Ready' : 'Offline'}</small>
+          <small>{engineReady ? 'Ready' : engineChecked ? 'Offline' : 'Checking'}</small>
         </div>
       </aside>
 
@@ -355,6 +408,14 @@ function App() {
                   busy={busy}
                   onRun={runPipeline}
                   onDecide={decide}
+                  providers={providers}
+                  stageProviders={stageProviders}
+                  onProviderChange={(stage, provider) =>
+                    setStageProviders((current) => ({
+                      ...current,
+                      [stage]: provider,
+                    }))
+                  }
                 />
               )}
             </section>
@@ -363,6 +424,7 @@ function App() {
               detail={activeRequest}
               tab={tab}
               onTab={setTab}
+              providers={providers}
             />
           </div>
         )}
@@ -447,11 +509,17 @@ function Pipeline({
   busy,
   onRun,
   onDecide,
+  providers,
+  stageProviders,
+  onProviderChange,
 }: {
   detail: RequestDetail
   busy: boolean
   onRun: () => void
   onDecide: (action: 'approve' | 'reject') => void
+  providers: ProviderOption[]
+  stageProviders: Record<string, string>
+  onProviderChange: (stage: string, provider: string) => void
 }) {
   const resultByStage = useMemo(
     () => new Map(detail.stage_results.map((result) => [result.stage, result])),
@@ -487,6 +555,39 @@ function Pipeline({
         })}
       </ol>
 
+      <section className="provider-matrix" aria-labelledby="routing-title">
+        <div>
+          <strong id="routing-title">Stage routing</strong>
+          <small>Only authenticated providers at the required tier are enabled.</small>
+        </div>
+        <div className="provider-grid">
+          {stages.map(([stage, label]) => {
+            const capability = stageCapability(stage)
+            const eligible = providers.filter(
+              (provider) =>
+                provider.capabilities.includes(capability) &&
+                ['authenticated', 'not_required'].includes(provider.authentication),
+            )
+            return (
+              <label key={stage}>
+                <span>{label}</span>
+                <select
+                  value={stageProviders[stage] ?? 'mock'}
+                  onChange={(event) => onProviderChange(stage, event.target.value)}
+                  disabled={Boolean(resultByStage.get(stage))}
+                >
+                  {eligible.map((provider) => (
+                    <option key={provider.id} value={provider.id}>
+                      {providerName(provider.id)} · {provider.tier}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )
+          })}
+        </div>
+      </section>
+
       {detail.approval && (
         <div className="approval-panel">
           <div className="approval-title">
@@ -509,7 +610,9 @@ function Pipeline({
         <div className="pipeline-actions">
           <div>
             <strong>{busy ? 'Running deterministic pipeline…' : `Next: ${detail.next_stage ?? 'complete'}`}</strong>
-            <small>Provider: Mock · eligible for all tiers</small>
+            <small>
+              Provider: {providerName(stageProviders[detail.next_stage ?? ''] ?? 'mock')}
+            </small>
           </div>
           <button className="button button--primary" disabled={busy} onClick={onRun}>
             {busy ? 'Running…' : 'Run pipeline'}
@@ -524,10 +627,12 @@ function EvidenceInspector({
   detail,
   tab,
   onTab,
+  providers,
 }: {
   detail: RequestDetail | null
   tab: EvidenceTab
   onTab: (tab: EvidenceTab) => void
+  providers: ProviderOption[]
 }) {
   const latest = detail?.stage_results.at(-1)
   const tabs: [EvidenceTab, string][] = [
@@ -603,7 +708,7 @@ function EvidenceInspector({
           )}
         </div>
       )}
-      <ProviderPicker />
+      <ProviderPicker providers={providers} />
     </aside>
   )
 }
@@ -625,17 +730,43 @@ function TestEvidence({ results }: { results: StageResult[] }) {
   )
 }
 
-function ProviderPicker() {
+function ProviderPicker({ providers }: { providers: ProviderOption[] }) {
   return (
     <section className="provider-picker">
-      <div><strong>Stage provider</strong><small>Tier eligibility enforced by engine</small></div>
-      <select aria-label="Default stage provider" defaultValue="mock">
-        <option value="mock">Mock · Heavy</option>
-        <option disabled>Claude Code · Phase 7</option>
-        <option disabled>Codex · Phase 7</option>
-      </select>
+      <div><strong>Provider readiness</strong><small>Tier eligibility enforced by engine</small></div>
+      <div className="provider-statuses">
+        {providers.map((provider) => (
+          <span key={provider.id}>
+            <i className={provider.authentication === 'login_required' ? 'provider-offline' : ''} />
+            {providerName(provider.id)}
+          </span>
+        ))}
+      </div>
     </section>
   )
+}
+
+function stageCapability(stage: string) {
+  const capabilities: Record<string, string> = {
+    request_logger: 'log',
+    planner: 'plan',
+    repo_analyzer: 'analyze',
+    builder: 'build',
+    documentation: 'document',
+    tester: 'test',
+    reviewer: 'review',
+    final_report: 'report',
+  }
+  return capabilities[stage]
+}
+
+function providerName(id: string) {
+  return {
+    mock: 'Mock',
+    cursor: 'Cursor',
+    codex: 'Codex',
+    'claude-code': 'Claude Code',
+  }[id] ?? id
 }
 
 function StateLabel({ state }: { state: string }) {

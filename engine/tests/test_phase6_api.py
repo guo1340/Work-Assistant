@@ -7,27 +7,6 @@ from app.main import app
 def test_api_project_request_and_pipeline(monkeypatch, tmp_path):
     monkeypatch.setenv("DEVFLOW_DATABASE_PATH", str(tmp_path / "state.db"))
     get_settings.cache_clear()
-
-
-def test_cors_preflight_allows_frontend_post(monkeypatch, tmp_path):
-    monkeypatch.setenv("DEVFLOW_DATABASE_PATH", str(tmp_path / "state.db"))
-    get_settings.cache_clear()
-
-    with TestClient(app) as client:
-        response = client.options(
-            "/api/requests",
-            headers={
-                "Origin": "http://127.0.0.1:5173",
-                "Access-Control-Request-Method": "POST",
-            },
-        )
-
-    assert response.status_code == 200
-    assert response.headers["access-control-allow-origin"] == (
-        "http://127.0.0.1:5173"
-    )
-    assert "POST" in response.headers["access-control-allow-methods"]
-    get_settings.cache_clear()
     project_root = tmp_path / "project"
     project_root.mkdir()
     (project_root / "README.md").write_text("# Project\n", encoding="utf-8")
@@ -68,4 +47,25 @@ def test_cors_preflight_allows_frontend_post(monkeypatch, tmp_path):
         assert state == "DONE"
         assert response.json()["final_report"]["verdict"] == "complete"
 
+    get_settings.cache_clear()
+
+
+def test_cors_preflight_allows_frontend_post(monkeypatch, tmp_path):
+    monkeypatch.setenv("DEVFLOW_DATABASE_PATH", str(tmp_path / "state.db"))
+    get_settings.cache_clear()
+
+    with TestClient(app) as client:
+        response = client.options(
+            "/api/requests",
+            headers={
+                "Origin": "http://127.0.0.1:5173",
+                "Access-Control-Request-Method": "POST",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == (
+        "http://127.0.0.1:5173"
+    )
+    assert "POST" in response.headers["access-control-allow-methods"]
     get_settings.cache_clear()

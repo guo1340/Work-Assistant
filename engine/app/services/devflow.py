@@ -8,10 +8,12 @@ from app.db.store import StateStore
 from app.domain.models import RequestState
 from app.git.safety import GitSafety
 from app.providers.mock import MockProvider
+from app.providers.cli import discover_cli_providers
 from app.providers.registry import ProviderRegistry
 from app.risk.rules import RiskRuleEngine
 from app.scanner.project import ProjectScanner
 from app.workflow.engine import WorkflowEngine
+from app.testing.runners import TestRunnerRegistry
 
 
 class DevFlowService:
@@ -20,6 +22,10 @@ class DevFlowService:
         self.providers = ProviderRegistry()
         self.mock_provider = MockProvider()
         self.providers.register(self.mock_provider)
+        self.cli_providers = discover_cli_providers()
+        for provider in self.cli_providers:
+            self.providers.register(provider)
+        self.test_runners = TestRunnerRegistry()
         self.git_safety: dict[int, GitSafety] = {}
         for project in self.store.list_projects():
             root = Path(project["root_path"])
@@ -78,6 +84,32 @@ class DevFlowService:
     ) -> dict[str, Any]:
         request = self.store.get_request(request_id)
         payload = self._stage_payload(request_id, request)
+        next_stage = self.engine.next_stage(request_id)
+        if (
+            next_stage
+            and next_stage.name == "tester"
+            and provider_id != self.mock_provider.id
+        ):
+            project = self.store.get_project(request["project_id"])
+            try:
+                execution = self.test_runners.run_detected(
+                    Path(project["root_path"]),
+                    install_dependencies=True,
+                )
+                payload["test_execution"] = {
+                    "runner": execution.runner,
+                    "command": list(execution.command),
+                    "passed": execution.passed,
+                    "failed": execution.failed,
+                    "coverage": execution.coverage,
+                    "exit_code": execution.exit_code,
+                    "output": execution.output[-12000:],
+                }
+            except LookupError as error:
+                payload["test_execution"] = {
+                    "error": str(error),
+                    "missing_information": ["supported test runner"],
+                }
         with self._lock:
             self.engine.run_next(request_id, provider_id, payload)
         return self.request_detail(request_id)
@@ -96,7 +128,14 @@ class DevFlowService:
         request = self.store.get_request(request_id)
         results = self.store.stage_results(request_id)
         for result in results:
-            result["output"] = json.loads(result["output"] or "{}")
+            output = json.loads(result["output"] or "{}")
+            if (
+                isinstance(output, dict)
+                and set(output) == {"stage_specific"}
+                and isinstance(output["stage_specific"], dict)
+            ):
+                output = output["stage_specific"]
+            result["output"] = output
             result["missing_information"] = json.loads(
                 result["missing_information"] or "[]"
             )
@@ -141,7 +180,7 @@ class DevFlowService:
         return self.store.list_requests(project_id)
 
     def provider_options(self) -> list[dict[str, Any]]:
-        return [
+        options = [
             {
                 "id": self.mock_provider.id,
                 "tier": str(self.mock_provider.tier),
@@ -149,8 +188,21 @@ class DevFlowService:
                     capability.value
                     for capability in self.mock_provider.capabilities
                 ),
+                "authentication": "not_required",
             }
         ]
+        options.extend(
+            {
+                "id": provider.id,
+                "tier": str(provider.tier),
+                "capabilities": sorted(
+                    capability.value for capability in provider.capabilities
+                ),
+                "authentication": provider.authentication_status(),
+            }
+            for provider in self.cli_providers
+        )
+        return options
 
     def _stage_payload(
         self,
@@ -158,10 +210,23 @@ class DevFlowService:
         request: dict[str, Any],
     ) -> dict[str, Any]:
         project = self.store.get_project(request["project_id"])
+        results = self.store.stage_results(request_id)
+        evidence = [
+            {
+                "stage": result["stage"],
+                "output": json.loads(result["output"] or "{}"),
+                "model_used": result["model_used"],
+                "confidence": result["confidence"],
+                "risk_level": result["risk_level"],
+            }
+            for result in results
+            if result["status"] == "success"
+        ]
         return {
             "original_text": request["original_text"],
             "planner_interpretation": request["planner_interpretation"],
             "tasks": self.store.tasks(request_id),
             "project_root": project["root_path"],
             "history": self.store.history(request_id)[-10:],
+            "stage_evidence": evidence,
         }

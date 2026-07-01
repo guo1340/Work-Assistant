@@ -51,3 +51,24 @@ Each entry should capture:
 - **Why:** Complete the mock-backed MVP workflow before real provider CLI
   integrations, preserving the deterministic engine and stateless-agent
   boundaries.
+
+## 2026-07-01 — Phases 7–8
+
+- **Changes made:** Added authenticated Codex, Claude Code, and Cursor
+  subprocess providers; versioned prompt registry; TypeScript, Java, and Python
+  test adapters; per-stage provider routing; OS proxy propagation; and Stage
+  Result normalization.
+- **Live validation:** Completed a real TypeScript request through all eight
+  stages. The deterministic auth-path rule opened an approval gate, the engine
+  committed the approved Builder changes on a request branch, and Vitest passed
+  7/7 tests.
+- **Defects fixed from live evidence:** Preserved the live Git-safety registry
+  for projects added after startup, moved Claude prompts to stdin, removed
+  Cursor's lossy shell wrapper, selected Cursor's read-only ask mode, disabled
+  optional Codex MCP integrations, selected reliable Codex HTTP transport, and
+  replaced placeholder output examples with stage-specific contracts.
+- **Files modified:** `engine/app/providers`, `engine/app/testing`,
+  `engine/app/prompts`, top-level `prompts`, `engine/app/services/devflow.py`,
+  `engine/app/agents/committer.py`, `frontend/src`, and Phase 7 tests.
+- **Why:** Complete ADR-021 and prove the MVP on a real repository without
+  moving orchestration or shared-state mutation into an LLM.

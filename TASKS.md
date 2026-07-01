@@ -29,7 +29,7 @@ files, status, and a parent `request_id` once requests start flowing.
 
 - [ ] Project selector
 - [ ] Request input
-- [ ] Per-stage model selection (tier-filtered)
+- [x] Per-stage model selection (tier-filtered)
 - [ ] Live pipeline / stage view
 - [ ] Approval prompt UI
 - [ ] Final report view
@@ -68,8 +68,8 @@ files, status, and a parent `request_id` once requests start flowing.
 
 ## Builder
 
-- [ ] Codex integration
-- [ ] Claude Code integration
+- [x] Codex integration
+- [x] Claude Code integration
 - [ ] Task execution workflow
 - [ ] High-risk diff detection → approval gate
 
@@ -80,13 +80,13 @@ files, status, and a parent `request_id` once requests start flowing.
 
 ## Tester
 
-- [ ] `TestRunner` adapter interface (detect → install → run → parse)
-- [ ] TypeScript/JS adapter (Vitest / Jest) — first
-- [ ] Java adapter (JUnit via Maven / Gradle) — second
-- [ ] Python adapter (pytest) — third
-- [ ] Generate tests
-- [ ] Run tests
-- [ ] Write `TEST_LOGS.md` (results, coverage, regressions)
+- [x] `TestRunner` adapter interface (detect → install → run → parse)
+- [x] TypeScript/JS adapter (Vitest / Jest) — first
+- [x] Java adapter (JUnit via Maven / Gradle) — second
+- [x] Python adapter (pytest) — third
+- [x] Generate tests
+- [x] Run tests
+- [x] Write `TEST_LOGS.md` (results, coverage, regressions)
 
 ## Reviewer
 
@@ -98,18 +98,18 @@ files, status, and a parent `request_id` once requests start flowing.
 
 ## Final Report
 
-- [ ] Assemble per-request report
-- [ ] Update `TRACEABILITY.md` matrix
+- [x] Assemble per-request report
+- [x] Update `TRACEABILITY.md` matrix
 
 ## Final Steps Before Live Testing (ADR-021)
 
 > Everything above is built and tested against the **mock provider** first.
 > These real integrations are the last thing wired in before live testing.
 
-- [ ] Codex CLI integration (real provider behind `Provider` interface)
-- [ ] Claude Code CLI integration (real provider)
-- [ ] Cursor free tier integration (translation / Planner stage)
-- [ ] End-to-end live test on a real project after integrations land
+- [x] Codex CLI integration (real provider behind `Provider` interface)
+- [x] Claude Code CLI integration (real provider)
+- [x] Cursor free tier integration (translation / Planner stage)
+- [x] End-to-end live test on a real project after integrations land
 
 ## Future
 

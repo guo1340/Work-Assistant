@@ -84,6 +84,40 @@ Each test run records:
   - Consider wiring a coverage tool (`pytest-cov`) in a later phase for hard
     numbers.
 
+### 2026-07-01 — Phases 3–6 (Scanner, Agents, Risk/Git, API)
+
+- **Scope:** Reviewed Codex's Phase 3–6 build (scanner, KB, agents/committer,
+  risk rules, Git safety, DevFlow service + API), ran the suite, added coverage.
+- **Confidence:** High
+- **Risk:** Low
+- **Tests Passed:** 66 / 66 (46 prior + 20 added/fixed)
+- **Tests Failed:** 0
+- **Defect fixed:** `test_phase6_api.py::test_api_project_request_and_pipeline`
+  was **empty** — its setup ran but it had no assertions, while the real
+  project→request→pipeline assertions had been pasted into the CORS test. Split
+  them so each test covers its own concern; the pipeline test now genuinely
+  drives the API end-to-end to `DONE`.
+- **Added tests:**
+  - `test_phase3_extra.py` (5) — invalid scan_type, soft scan does not fabricate
+    KB files, hard-scan framework detection, vendored-dir exclusion,
+    unknown-project update guard.
+  - `test_phase4_extra.py` (4) — traceability checker (empty/duplicate/foreign
+    request-id/well-formed).
+  - `test_phase5_extra.py` (6) — high-diff-pattern risk, config-file medium,
+    large-diff boundary at threshold, `resolve()` max(agent, rule), confidence
+    threshold, Git path-escape guard.
+  - `test_phase6_extra.py` (5) — engine↔risk integration (rule-detected high risk
+    and low confidence both force approval), API error paths (400 bad root, 400
+    blank text, 404 unknown request).
+- **Environment note:** Again run on Python 3.10 via the compatibility shim, and
+  additionally against a clean tree materialized from Git (`git archive HEAD`)
+  because the sandbox working-tree mount served a truncated copy of `store.py`.
+  The committed file is intact (461 lines); the truncation was a mount artifact,
+  not a code defect. Real dev/CI on 3.11+ against the working tree is unaffected.
+- **Still stubbed (by design, for Phase 7+):** Repository Analyzer context
+  assembly, Reviewer traceability audit, and Tester execution are mock outputs;
+  the only registered provider is the mock. See build-readiness notes below.
+
 ### 2026-07-01 — Phases 3–6
 
 - **Scope:** Scanner, Markdown KB, full mock pipeline, traceability, risk rules,
@@ -100,3 +134,22 @@ Each test run records:
   375 px responsive layout. No console errors or horizontal overflow.
 - **Regression found and fixed:** Browser `POST` requests were blocked by the
   Phase 0 CORS method allowlist; `POST` is now explicitly allowed.
+
+### 2026-07-01 — Phases 7–8 (Real providers and live pipeline)
+
+- **Confidence:** High
+- **Risk:** Medium
+- **Backend:** 80/80 tests passed after live tuning.
+- **Live provider smokes:** Claude Code, Codex, and Cursor each returned a valid
+  Stage Result through the production adapter.
+- **Live end-to-end:** Request reached `DONE`; 8/8 stages succeeded; the
+  high-risk auth-path approval gate fired and was approved; Git commit
+  `74cce2524aab5e3d7f5100db4c21c12522ea7ff5` was recorded.
+- **Native tests:** Vitest 7/7 passed across 2 files.
+- **Frontend:** ESLint passed; TypeScript/Vite production build passed.
+- **Impeccable:** Deterministic detector returned zero findings; desktop and
+  390 px browser checks showed no horizontal overflow and 44 px or larger
+  actionable controls.
+- **Regressions:** none.
+- **Known limitation:** Full Impeccable critique requires explicit permission
+  to run its two independent sub-agents.
